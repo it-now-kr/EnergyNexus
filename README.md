@@ -32,7 +32,7 @@ python3 -m http.server 4173
 
 페이지 중간 삽입을 쓸 경우, 임베드 상자 높이를 충분히 늘려야 합니다. 사이트 내부 스크롤과 Google Sites 스크롤이 겹치면 전체 페이지 삽입으로 바꾸는 것이 낫습니다.
 
-문의 화면은 기존 레이아웃을 유지하고, 제출 시 [Energy Nexus 설문지](https://forms.gle/N78g3VzW2U2iMxEV6)로 접수됩니다. 응답은 Google 설문지 또는 연결된 스프레드시트에서 확인합니다.
+문의 화면은 기존 레이아웃을 유지하고, 제출 시 [홈페이지 문의 양식](https://docs.google.com/forms/d/e/1FAIpQLSehrVC28O0TsfrhHbXg6JAgaAqX98ZPKW1oDIEn5mRxoVfdqQ/viewform)으로 접수됩니다. 응답은 Google 설문지 또는 연결된 스프레드시트에서 확인합니다.
 
 ## 1차 오픈 전 확인할 항목
 
