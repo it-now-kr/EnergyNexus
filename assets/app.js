@@ -4,7 +4,7 @@
   document.documentElement.classList.toggle("in-iframe", inIframe);
 
   const INSIGHTS = [];
-  const RSS_CACHE_KEY = "energy-nexus-rss";
+  const RSS_CACHE_KEY = "energy-nexus-linkedin-rss";
   const RSS_CACHE_MS = 5 * 60 * 1000;
 
   const pending = "준비 중";
@@ -81,9 +81,91 @@
   }
 
   function tagFromTitle(title, category) {
-    if (/기고/.test(title || "")) return "Column";
-    if (category && category !== "에너로그") return category;
-    return "Energy Insights";
+    if (/기고|칼럼/.test(title || "")) return "Column";
+    if (/Energy Notes|에너지 노트|에너지노트/i.test(title || "")) return "Energy Notes";
+    if (category && !/에너로그|linkedin/i.test(category)) return category;
+    return "LinkedIn";
+  }
+
+  function linkedinProfileUrl() {
+    const raw = cfg.linkedinUrl || "";
+    try {
+      const url = new URL(raw);
+      url.search = "";
+      url.hash = "";
+      const parts = url.pathname.split("/").filter(Boolean);
+      const inIdx = parts.indexOf("in");
+      const slug = inIdx >= 0 ? parts[inIdx + 1] : "";
+      if (!slug) return { profile: raw.split("?")[0], activity: raw.split("?")[0], slug: "" };
+      const profile = url.origin + "/in/" + decodeURIComponent(slug) + "/";
+      return {
+        profile: profile,
+        activity: profile + "recent-activity/all/",
+        slug: decodeURIComponent(slug),
+      };
+    } catch (err) {
+      return { profile: raw.split("?")[0], activity: raw.split("?")[0], slug: "" };
+    }
+  }
+
+  function rssCandidateUrls() {
+    const urls = [];
+    if (cfg.rssUrl) urls.push(cfg.rssUrl);
+    const slug = linkedinProfileUrl().slug;
+    if (slug) {
+      urls.push("https://rsshub.app/linkedin/posts/" + encodeURIComponent(slug));
+      urls.push("https://rsshub.app/linkedin/in/" + encodeURIComponent(slug));
+    }
+    return urls;
+  }
+
+  function fallbackInsights() {
+    return Array.isArray(cfg.insights) ? cfg.insights.slice(0, cfg.rssCount || 3) : [];
+  }
+
+  function loadInsightsFromRss() {
+    const cached = readRssCache();
+    if (cached) return Promise.resolve(cached);
+
+    const candidates = rssCandidateUrls();
+    if (!candidates.length) return Promise.resolve(fallbackInsights());
+
+    function tryNext(index) {
+      if (index >= candidates.length) {
+        const fallback = fallbackInsights();
+        if (fallback.length) return Promise.resolve(fallback);
+        return Promise.reject(new Error("rss-empty"));
+      }
+      const rssUrl = candidates[index];
+      const jsonApi =
+        "https://api.rss2json.com/v1/api.json?rss_url=" +
+        encodeURIComponent(rssUrl) +
+        "&count=" +
+        encodeURIComponent(cfg.rssCount || 3);
+      const proxyApi = "https://api.allorigins.win/raw?url=" + encodeURIComponent(rssUrl);
+
+      return fetchJson(jsonApi)
+        .then(function (data) {
+          if (!data || data.status !== "ok") throw new Error("rss-json");
+          return parseRssJson(data);
+        })
+        .catch(function () {
+          return fetchText(proxyApi).then(parseRssXml);
+        })
+        .catch(function () {
+          return fetchText(rssUrl).then(parseRssXml);
+        })
+        .then(function (items) {
+          if (!items.length) throw new Error("rss-empty");
+          writeRssCache(items);
+          return items;
+        })
+        .catch(function () {
+          return tryNext(index + 1);
+        });
+    }
+
+    return tryNext(0);
   }
 
   function xmlText(node, tag) {
@@ -164,39 +246,6 @@
     });
   }
 
-  function loadInsightsFromRss() {
-    const rssUrl = cfg.rssUrl;
-    if (!rssUrl) return Promise.resolve([]);
-
-    const cached = readRssCache();
-    if (cached) return Promise.resolve(cached);
-
-    const jsonApi =
-      "https://api.rss2json.com/v1/api.json?rss_url=" +
-      encodeURIComponent(rssUrl) +
-      "&count=" +
-      encodeURIComponent(cfg.rssCount || 3);
-    const proxyApi =
-      "https://api.allorigins.win/raw?url=" + encodeURIComponent(rssUrl);
-
-    return fetchJson(jsonApi)
-      .then(function (data) {
-        if (!data || data.status !== "ok") throw new Error("rss-json");
-        return parseRssJson(data);
-      })
-      .catch(function () {
-        return fetchText(proxyApi).then(parseRssXml);
-      })
-      .catch(function () {
-        return fetchText(rssUrl).then(parseRssXml);
-      })
-      .then(function (items) {
-        if (!items.length) throw new Error("rss-empty");
-        writeRssCache(items);
-        return items;
-      });
-  }
-
   function renderInsights(items) {
     const list = document.getElementById("insight-list");
     if (!list) return;
@@ -204,8 +253,8 @@
     if (!posts.length) {
       list.innerHTML =
         '<p class="insight-status">최신 글을 불러오지 못했습니다. <a href="' +
-        escapeHtml(cfg.blogUrl || cfg.rssUrl || "#") +
-        '" target="_blank" rel="noopener noreferrer">에너로그에서 보기</a></p>';
+        escapeHtml(linkedinProfileUrl().activity || cfg.linkedinUrl || "#") +
+        '" target="_blank" rel="noopener noreferrer">LinkedIn에서 보기</a></p>';
       return;
     }
     list.innerHTML = posts
@@ -245,7 +294,7 @@
   function showInsightLoading() {
     const list = document.getElementById("insight-list");
     if (!list) return;
-    list.innerHTML = '<p class="insight-status">최신 글을 불러오는 중입니다.</p>';
+    list.innerHTML = '<p class="insight-status">LinkedIn 최신 글을 불러오는 중입니다.</p>';
   }
 
   const insightModal = document.getElementById("insight-modal");
@@ -567,7 +616,7 @@
       postHeight();
     })
     .catch(function () {
-      renderInsights([]);
+      renderInsights(fallbackInsights());
       postHeight();
     });
   setActiveNav();

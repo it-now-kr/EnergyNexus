@@ -17,7 +17,7 @@ python3 -m http.server 4173
 `assets/config.js` 만 수정하면 됩니다.
 
 - `email`, `phone`, `bizNumber`, `addressDetail`
-- 인사이트 RSS: `rssUrl` · `rssCount` ([에너로그](https://blog.naver.com/energysystemdesigner/))
+- 인사이트: [LinkedIn](https://www.linkedin.com/in/김형중-hyeongjung-kim-6814b341/) (`linkedinUrl`). 공식 RSS가 없어 실시간 피드가 실패하면 `insights` 최근 글을 보여 줍니다. RSS.app 등으로 만든 주소가 있으면 `rssUrl`에 넣습니다.
 - Google 설문지: `googleFormUrl` · `googleFormAction` · `googleFormFields` (문의 화면에서 바로 접수)
 
 값이 비어 있으면 화면에 “준비 중”으로 표시됩니다.
