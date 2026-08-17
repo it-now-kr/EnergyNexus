@@ -24,5 +24,7 @@ window.ENERGY_NEXUS = {
     agree: "entry.813720148",
   },
   googleFormAgreeValue: "[필수] 문의 처리를 위한 개인정보 수집 및 이용에 동의합니다.",
-  insightLinks: ["", "", ""],
+  rssUrl: "https://rss.blog.naver.com/energysystemdesigner.xml",
+  rssCount: 3,
+  blogUrl: "https://blog.naver.com/energysystemdesigner/",
 };

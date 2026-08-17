@@ -541,6 +541,9 @@ p {
   border: 0;
   padding: 28px 24px;
   cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
 }
 
 .insight-card:hover {
@@ -569,6 +572,20 @@ p {
   font-size: 13px;
   color: var(--copper);
   white-space: nowrap;
+}
+
+.insight-status {
+  margin: 0;
+  padding: 28px 24px;
+  background: #102433;
+  color: rgba(251, 248, 242, 0.72);
+  font-size: 15px;
+}
+
+.insight-status a {
+  color: var(--copper);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .contact-layout {

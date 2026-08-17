@@ -3,29 +3,9 @@
   const inIframe = window.self !== window.top;
   document.documentElement.classList.toggle("in-iframe", inIframe);
 
-  const INSIGHTS = [
-    {
-      tag: "Energy Insights",
-      title: "AI 데이터센터, 전력회사와 개발사는 어떻게 협력해야 할까",
-      excerpt:
-        "AI 데이터센터의 전력수요 증가에 대응하기 위해 전력회사와 개발사가 함께 고려해야 할 협력 방향을 살펴봅니다.",
-      url: cfg.insightLinks && cfg.insightLinks[0],
-    },
-    {
-      tag: "Column",
-      title: "‘더 많은 전기’로는 부족…공간·시간·운영 병목을 풀어라",
-      excerpt:
-        "전력수요 증가에 대응하기 위해 전력공급 확대와 함께 해결해야 할 전력망의 세 가지 병목을 짚어봅니다.",
-      url: cfg.insightLinks && cfg.insightLinks[1],
-    },
-    {
-      tag: "Energy Insights",
-      title: "ATM, 계량기 앞과 뒤를 함께 보다",
-      excerpt:
-        "전력계량기의 앞과 뒤에서 이루어지는 다양한 에너지 활동을 통합적으로 바라보는 ATM의 의미를 살펴봅니다.",
-      url: cfg.insightLinks && cfg.insightLinks[2],
-    },
-  ];
+  const INSIGHTS = [];
+  const RSS_CACHE_KEY = "energy-nexus-rss";
+  const RSS_CACHE_MS = 5 * 60 * 1000;
 
   const pending = "준비 중";
   const email = (cfg.email || "").trim();
@@ -63,28 +43,209 @@
     ].join("<br />");
   }
 
-  function renderInsights() {
+  function escapeHtml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function decodeEntities(value) {
+    const box = document.createElement("textarea");
+    box.innerHTML = String(value || "");
+    return box.value;
+  }
+
+  function stripHtml(value) {
+    const box = document.createElement("div");
+    box.innerHTML = String(value || "");
+    return (box.textContent || "").replace(/\s+/g, " ").trim();
+  }
+
+  function excerptFrom(value) {
+    const text = stripHtml(decodeEntities(value));
+    if (text.length <= 110) return text;
+    return text.slice(0, 109).replace(/\s+\S*$/, "") + "…";
+  }
+
+  function cleanPostUrl(value) {
+    try {
+      const url = new URL(String(value || ""), location.href);
+      url.search = "";
+      url.hash = "";
+      return url.toString();
+    } catch (err) {
+      return String(value || "").split("?")[0];
+    }
+  }
+
+  function tagFromTitle(title, category) {
+    if (/기고/.test(title || "")) return "Column";
+    if (category && category !== "에너로그") return category;
+    return "Energy Insights";
+  }
+
+  function xmlText(node, tag) {
+    const el = node.getElementsByTagName(tag)[0];
+    return el ? decodeEntities(el.textContent || "") : "";
+  }
+
+  function parseRssXml(rssXml) {
+    const doc = new DOMParser().parseFromString(rssXml, "text/xml");
+    if (doc.querySelector("parsererror")) throw new Error("rss-parse");
+    return Array.prototype.slice
+      .call(doc.querySelectorAll("item"))
+      .slice(0, cfg.rssCount || 3)
+      .map(function (item) {
+        const title = xmlText(item, "title");
+        return {
+          tag: tagFromTitle(title, xmlText(item, "category")),
+          title: title,
+          excerpt: excerptFrom(xmlText(item, "description")),
+          url: cleanPostUrl(xmlText(item, "guid") || xmlText(item, "link")),
+        };
+      })
+      .filter(function (item) {
+        return item.title && item.url;
+      });
+  }
+
+  function parseRssJson(data) {
+    const items = (data && data.items) || [];
+    return items.slice(0, cfg.rssCount || 3).map(function (item) {
+      const title = decodeEntities(item.title || "");
+      return {
+        tag: tagFromTitle(title, (item.categories && item.categories[0]) || ""),
+        title: title,
+        excerpt: excerptFrom(item.description || item.content || ""),
+        url: cleanPostUrl(item.guid || item.link),
+      };
+    }).filter(function (item) {
+      return item.title && item.url;
+    });
+  }
+
+  function readRssCache() {
+    try {
+      const raw = sessionStorage.getItem(RSS_CACHE_KEY);
+      if (!raw) return null;
+      const cached = JSON.parse(raw);
+      if (!cached || Date.now() - cached.at > RSS_CACHE_MS) return null;
+      if (!cached.items || !cached.items.length) return null;
+      return cached.items;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function writeRssCache(items) {
+    try {
+      sessionStorage.setItem(
+        RSS_CACHE_KEY,
+        JSON.stringify({ at: Date.now(), items: items })
+      );
+    } catch (err) {
+      /* ignore quota / private mode */
+    }
+  }
+
+  function fetchJson(url) {
+    return fetch(url, { credentials: "omit" }).then(function (res) {
+      if (!res.ok) throw new Error(String(res.status));
+      return res.json();
+    });
+  }
+
+  function fetchText(url) {
+    return fetch(url, { credentials: "omit" }).then(function (res) {
+      if (!res.ok) throw new Error(String(res.status));
+      return res.text();
+    });
+  }
+
+  function loadInsightsFromRss() {
+    const rssUrl = cfg.rssUrl;
+    if (!rssUrl) return Promise.resolve([]);
+
+    const cached = readRssCache();
+    if (cached) return Promise.resolve(cached);
+
+    const jsonApi =
+      "https://api.rss2json.com/v1/api.json?rss_url=" +
+      encodeURIComponent(rssUrl) +
+      "&count=" +
+      encodeURIComponent(cfg.rssCount || 3);
+    const proxyApi =
+      "https://api.allorigins.win/raw?url=" + encodeURIComponent(rssUrl);
+
+    return fetchJson(jsonApi)
+      .then(function (data) {
+        if (!data || data.status !== "ok") throw new Error("rss-json");
+        return parseRssJson(data);
+      })
+      .catch(function () {
+        return fetchText(proxyApi).then(parseRssXml);
+      })
+      .catch(function () {
+        return fetchText(rssUrl).then(parseRssXml);
+      })
+      .then(function (items) {
+        if (!items.length) throw new Error("rss-empty");
+        writeRssCache(items);
+        return items;
+      });
+  }
+
+  function renderInsights(items) {
     const list = document.getElementById("insight-list");
     if (!list) return;
-    list.innerHTML = INSIGHTS.map(function (item, index) {
-      return (
-        '<button class="insight-card" type="button" data-insight="' +
-        index +
-        '">' +
-        '<span class="tag">' +
-        item.tag +
-        "</span>" +
-        "<div><h3>" +
-        item.title +
-        "</h3><p>" +
-        item.excerpt +
-        "</p></div>" +
-        '<span class="more">' +
-        (item.url ? "원문 보기" : "미리보기") +
-        "</span>" +
-        "</button>"
-      );
-    }).join("");
+    const posts = items || INSIGHTS;
+    if (!posts.length) {
+      list.innerHTML =
+        '<p class="insight-status">최신 글을 불러오지 못했습니다. <a href="' +
+        escapeHtml(cfg.blogUrl || cfg.rssUrl || "#") +
+        '" target="_blank" rel="noopener noreferrer">에너로그에서 보기</a></p>';
+      return;
+    }
+    list.innerHTML = posts
+      .map(function (item, index) {
+        const inner =
+          '<span class="tag">' +
+          escapeHtml(item.tag) +
+          "</span>" +
+          "<div><h3>" +
+          escapeHtml(item.title) +
+          "</h3><p>" +
+          escapeHtml(item.excerpt) +
+          "</p></div>" +
+          '<span class="more">' +
+          (item.url ? "원문 보기" : "미리보기") +
+          "</span>";
+        if (item.url) {
+          return (
+            '<a class="insight-card" href="' +
+            escapeHtml(item.url) +
+            '" target="_blank" rel="noopener noreferrer">' +
+            inner +
+            "</a>"
+          );
+        }
+        return (
+          '<button class="insight-card" type="button" data-insight="' +
+          index +
+          '">' +
+          inner +
+          "</button>"
+        );
+      })
+      .join("");
+  }
+
+  function showInsightLoading() {
+    const list = document.getElementById("insight-list");
+    if (!list) return;
+    list.innerHTML = '<p class="insight-status">최신 글을 불러오는 중입니다.</p>';
   }
 
   const insightModal = document.getElementById("insight-modal");
@@ -395,7 +556,20 @@
 
   renderContactMeta();
   renderFooter();
-  renderInsights();
+  showInsightLoading();
+  loadInsightsFromRss()
+    .then(function (items) {
+      INSIGHTS.length = 0;
+      items.forEach(function (item) {
+        INSIGHTS.push(item);
+      });
+      renderInsights(INSIGHTS);
+      postHeight();
+    })
+    .catch(function () {
+      renderInsights([]);
+      postHeight();
+    });
   setActiveNav();
   postHeight();
 })();

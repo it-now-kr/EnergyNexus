@@ -17,7 +17,7 @@ python3 -m http.server 4173
 `assets/config.js` 만 수정하면 됩니다.
 
 - `email`, `phone`, `bizNumber`, `addressDetail`
-- 인사이트 원문 주소: `insightLinks`
+- 인사이트 RSS: `rssUrl` · `rssCount` ([에너로그](https://blog.naver.com/energysystemdesigner/))
 - Google 설문지: `googleFormUrl` · `googleFormAction` · `googleFormFields` (문의 화면에서 바로 접수)
 
 값이 비어 있으면 화면에 “준비 중”으로 표시됩니다.
