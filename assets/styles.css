@@ -61,6 +61,7 @@ textarea {
 h1,
 h2,
 h3,
+h4,
 p {
   margin: 0;
 }
@@ -363,6 +364,113 @@ p {
   gap: 48px;
 }
 
+.about-extra {
+  grid-column: 1 / -1;
+}
+
+.subhead {
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.origin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.origin-card,
+.capability-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  padding: 24px;
+}
+
+.origin-index {
+  font-family: var(--serif);
+  font-size: 22px;
+  color: var(--copper);
+  line-height: 1;
+}
+
+.origin-card h4 {
+  font-size: 17px;
+  letter-spacing: -0.02em;
+  margin: 10px 0 10px;
+}
+
+.origin-card p,
+.capability-card p,
+.brand-meaning {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.brand-identity {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(240px, 0.8fr);
+  gap: 32px;
+  margin-top: 48px;
+  padding-top: 40px;
+  border-top: 1px solid var(--line);
+  align-items: start;
+}
+
+.brand-meaning {
+  font-size: 17px;
+  max-width: 40em;
+}
+
+.brand-points {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.brand-points li {
+  position: relative;
+  padding-left: 14px;
+  font-size: 15px;
+}
+
+.brand-points li + li {
+  margin-top: 10px;
+}
+
+.brand-points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.7em;
+  width: 6px;
+  height: 1px;
+  background: var(--teal);
+}
+
+.capabilities {
+  background: var(--white);
+  border-block: 1px solid var(--line);
+}
+
+.capability-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.capability-card {
+  padding: 28px 24px 32px;
+  background: var(--paper);
+}
+
+.capability-card h3 {
+  font-size: 20px;
+  letter-spacing: -0.03em;
+  margin: 4px 0 12px;
+}
+
 .section-copy p + p,
 .greeting-body p + p {
   margin-top: 16px;
@@ -375,6 +483,12 @@ p {
   color: var(--muted);
   font-size: 17px;
   max-width: 44em;
+}
+
+@media (min-width: 981px) {
+  .about-extra {
+    grid-column: 2;
+  }
 }
 
 .greeting {
@@ -459,6 +573,24 @@ p {
   gap: 18px;
 }
 
+@media (min-width: 981px) {
+  .service-grid.is-five {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .service-grid.is-five .service-card {
+    grid-column: span 2;
+  }
+
+  .service-grid.is-five .service-card:nth-child(4) {
+    grid-column: 2 / span 2;
+  }
+
+  .service-grid.is-five .service-card:nth-child(5) {
+    grid-column: 4 / span 2;
+  }
+}
+
 .service-card {
   background: var(--white);
   border: 1px solid var(--line);
@@ -523,6 +655,23 @@ p {
   color: rgba(251, 248, 242, 0.7);
 }
 
+.insight-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.insight-cats li {
+  border: 1px solid rgba(231, 225, 212, 0.28);
+  color: rgba(251, 248, 242, 0.78);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  padding: 6px 12px;
+}
+
 .insight-list {
   display: grid;
   gap: 1px;
@@ -550,11 +699,21 @@ p {
   background: #153044;
 }
 
+.insight-card .meta {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
 .insight-card .tag {
   font-size: 11px;
   letter-spacing: 0.16em;
-  text-transform: uppercase;
   color: var(--teal);
+}
+
+.insight-card time {
+  font-size: 12px;
+  color: rgba(251, 248, 242, 0.48);
 }
 
 .insight-card h3 {
@@ -742,6 +901,12 @@ p {
   margin-bottom: 8px;
 }
 
+.footer-licenses {
+  margin: 10px 0 0;
+  color: rgba(251, 248, 242, 0.56);
+  font-size: 13px;
+}
+
 .footer-links {
   display: flex;
   gap: 18px;
@@ -818,8 +983,16 @@ p {
   .greeting-layout,
   .section-head,
   .contact-layout,
-  .insight-card {
+  .insight-card,
+  .origin-grid,
+  .brand-identity,
+  .capability-grid {
     grid-template-columns: 1fr;
+  }
+
+  .about-extra,
+  .service-grid.is-five .service-card {
+    grid-column: auto;
   }
 
   .hero {

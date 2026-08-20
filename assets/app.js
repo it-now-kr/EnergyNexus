@@ -12,6 +12,8 @@
   const phone = (cfg.phone || "").trim();
   const bizNumber = (cfg.bizNumber || "").trim();
   const address = [cfg.address, cfg.addressDetail].filter(Boolean).join(" ");
+  const office = (cfg.office || "").trim();
+  const licenses = Array.isArray(cfg.licenses) ? cfg.licenses.filter(Boolean) : [];
 
   function textOrPending(value) {
     return value || pending;
@@ -23,7 +25,8 @@
     const rows = [
       ["이메일", email ? '<a href="mailto:' + email + '">' + email + "</a>" : pending],
       ["대표전화", phone ? '<a href="tel:' + phone.replace(/\s/g, "") + '">' + phone + "</a>" : pending],
-      ["본점", address || pending],
+      ["본사", address || pending],
+      ["사무소", office || pending],
     ];
     root.innerHTML = rows
       .map(function (row) {
@@ -36,11 +39,18 @@
     const legal = document.getElementById("footer-legal");
     if (!legal) return;
     legal.innerHTML = [
-      (cfg.company || "㈜에너지넥서스") + "  |  대표이사 " + (cfg.ceo || "김형중"),
+      (cfg.company || "㈜에너지넥서스") + "  |  ENERGY NEXUS",
+      "대표이사 " + (cfg.ceo || "김형중"),
+      "본사  " + textOrPending(address),
+      "사무소  " + textOrPending(office),
+      "이메일  " + textOrPending(email) + (phone ? "  |  대표전화  " + phone : ""),
       "사업자등록번호  " + textOrPending(bizNumber),
-      "본점  " + textOrPending(address),
-      "대표전화  " + textOrPending(phone) + "  |  이메일  " + textOrPending(email),
     ].join("<br />");
+
+    const licenseRoot = document.getElementById("footer-licenses");
+    if (licenseRoot) {
+      licenseRoot.textContent = licenses.length ? licenses.join("  |  ") : "";
+    }
   }
 
   function escapeHtml(value) {
@@ -81,10 +91,31 @@
   }
 
   function tagFromTitle(title, category) {
-    if (/기고|칼럼/.test(title || "")) return "Column";
-    if (/Energy Notes|에너지 노트|에너지노트/i.test(title || "")) return "Energy Notes";
-    if (category && !/에너로그|linkedin/i.test(category)) return category;
-    return "LinkedIn";
+    const text = String(title || "") + " " + String(category || "");
+    if (/기고|칼럼|Energy Insights|Energy Notes|에너지 노트|에너지노트/i.test(text)) return "칼럼·기고";
+    if (/보도|인터뷰/.test(text)) return "언론보도";
+    if (/보고서|연구동향|IRENA/i.test(text)) return "연구·보고서";
+    if (/저서|개론|출판|집필/.test(text)) return "출판·저서";
+    if (/세미나|포럼|강의|교육|발표/.test(text)) return "세미나·활동";
+    if (category && /칼럼|기고|보도|연구|출판|세미나/.test(category)) return category;
+    return "칼럼·기고";
+  }
+
+  function formatDate(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return y + "." + m + "." + d;
+  }
+
+  function isoDate(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toISOString().slice(0, 10);
   }
 
   function linkedinProfileUrl() {
@@ -186,6 +217,7 @@
           title: title,
           excerpt: excerptFrom(xmlText(item, "description")),
           url: cleanPostUrl(xmlText(item, "guid") || xmlText(item, "link")),
+          date: xmlText(item, "pubDate") || xmlText(item, "published"),
         };
       })
       .filter(function (item) {
@@ -202,6 +234,7 @@
         title: title,
         excerpt: excerptFrom(item.description || item.content || ""),
         url: cleanPostUrl(item.guid || item.link),
+        date: item.pubDate || item.published || "",
       };
     }).filter(function (item) {
       return item.title && item.url;
@@ -259,10 +292,16 @@
     }
     list.innerHTML = posts
       .map(function (item, index) {
+        const dateLabel = formatDate(item.date);
+        const dateIso = isoDate(item.date);
         const inner =
-          '<span class="tag">' +
-          escapeHtml(item.tag) +
+          '<div class="meta"><span class="tag">' +
+          escapeHtml(item.tag || "칼럼·기고") +
           "</span>" +
+          (dateLabel
+            ? '<time datetime="' + escapeHtml(dateIso) + '">' + escapeHtml(dateLabel) + "</time>"
+            : "") +
+          "</div>" +
           "<div><h3>" +
           escapeHtml(item.title) +
           "</h3><p>" +
@@ -431,7 +470,7 @@
         format: isValidEmail,
         formatMsg: "올바른 이메일 주소를 입력해 주세요. 예: name@example.com",
       },
-      { el: form.elements.type, msg: "문의 유형을 선택해 주세요." },
+      { el: form.elements.type, msg: "문의 분야를 선택해 주세요." },
       { el: form.elements.message, msg: "문의 내용을 입력해 주세요." },
       { el: form.elements.agree, msg: "개인정보 수집·이용에 동의해 주세요." },
     ];
@@ -568,10 +607,10 @@
 
     const body = [
       "이름: " + data.get("name"),
-      "소속: " + (data.get("org") || "-"),
+      "회사·기관명: " + (data.get("org") || "-"),
       "이메일: " + data.get("email"),
       "연락처: " + (data.get("phone") || "-"),
-      "유형: " + data.get("type"),
+      "문의 분야: " + data.get("type"),
       "",
       data.get("message"),
     ].join("\n");
